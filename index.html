@@ -16,7 +16,8 @@ h1 small{color:#9fb0a5;font-weight:600;font-size:13px}
 .yr-player{position:relative;aspect-ratio:16/9;background:#000;border:2px solid var(--acc);border-radius:14px;overflow:hidden;user-select:none;-webkit-user-select:none;box-shadow:0 30px 70px -30px rgba(0,0,0,.8)}
 .yr-player:fullscreen{border:0;border-radius:0;aspect-ratio:auto}
 .yr-video{position:absolute;inset:0}
-.yr-video iframe{width:100%;height:100%;border:0;pointer-events:none} /* الضغط بيروح لطبقتنا مش ليوتيوب */
+.yr-video iframe,.yr-video>div{position:absolute;inset:0;width:100%!important;height:100%!important;border:0}
+.yr-video iframe{pointer-events:none} /* الضغط بيروح لطبقتنا مش ليوتيوب */
 .yr-hit{position:absolute;inset:0;z-index:2;cursor:pointer}
 
 /* الشعار فوق على اليمين */
@@ -76,7 +77,7 @@ h1 small{color:#9fb0a5;font-weight:600;font-size:13px}
   <h1>🎬 تجربة المشغّل الخاص <small>صفحة تجريبية — فيديو يوتيوب داخل مشغّل بتصميم يلا رياضة</small></h1>
 
   <div class="yr-player" id="yr" tabindex="0" aria-label="مشغّل الفيديو">
-    <div class="yr-video" id="yr-video"></div>
+    <div class="yr-video" id="yr-video"><div id="yr-yt"></div></div>
     <div class="yr-hit" id="yr-hit"></div>
 
     <div class="yr-top">
@@ -129,19 +130,26 @@ const tick = setInterval(() => { if (ready) return; const el = Date.now() - t0; 
 
 let yt, timer, idleT, speeds = [0.75, 1, 1.25, 1.5, 2], si = 1, dragging = false, isLive = false;
 window.onYouTubeIframeAPIReady = () => {
-  yt = new YT.Player('yr-video', {
+  yt = new YT.Player('yr-yt', {
     videoId: VIDEO_ID,
-    host: 'https://www.youtube-nocookie.com',
-    playerVars: { controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, fs: 0, disablekb: 1, playsinline: 1, cc_load_policy: 0, origin: location.origin },
+        playerVars: { controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, fs: 0, disablekb: 1, playsinline: 1, cc_load_policy: 0, ...(location.protocol.startsWith('http') ? { origin: location.origin } : {}) },
     events: {
       onReady: () => { ready = true; clearInterval(tick); $('yr-lbar').style.width = '100%'; $('yr-pct').textContent = '100%'; $('yr-msg').textContent = 'تم ✓'; setTimeout(() => $('yr-load').classList.add('done'), 350); update(); },
       onStateChange: (e) => { const s = e.data; const playing = s === 1 || s === 3; player.classList.toggle('playing', s === 1 || s === 3); $('b-play').textContent = s === 1 ? '⏸' : '▶'; if (s === 0) { player.classList.remove('playing'); $('b-play').textContent = '↻'; } wake(); },
-      onError: () => { $('yr-load').classList.remove('done'); $('yr-msg').textContent = 'الفيديو غير متاح للتشغيل هنا'; clearInterval(tick); },
+      onError: (e) => fallback('يوتيوب رفض تشغيل الفيديو داخل المشغّل (كود ' + e.data + '). غالبًا لازم الصفحة تتفتح من رابط https على موقعك، أو صاحب الفيديو مانع التضمين.'),
     },
   });
   timer = setInterval(update, 250);
 };
-const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+/* لو المشغّل ما جهزش: رسالة واضحة + مشغّل يوتيوب العادي كبديل */
+const fallback = (why) => {
+  if (ready || fallback.done) return; fallback.done = true; clearInterval(tick);
+  $('yr-load').innerHTML = '<div style="max-width:420px;padding:0 16px;line-height:1.9"><b>تعذّر تشغيل المشغّل الخاص هنا</b><br><small>' + why + '</small><br><button id="yr-plain" style="margin-top:10px;background:#c6ff3d;color:#000;border:0;border-radius:10px;padding:9px 16px;font-weight:800;cursor:pointer;font-family:inherit">شغّل بالمشغّل العادي</button></div>';
+  $('yr-plain').onclick = () => { player.querySelector('.yr-ctl').remove(); $('yr-hit').remove(); $('yr-load').remove(); $('yr-video').innerHTML = '<iframe src="' + VIDEO_URL + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="pointer-events:auto"></iframe>'; };
+};
+if (location.protocol === 'file:') setTimeout(() => fallback('الصفحة مفتوحة من الجهاز مباشرة (file://) ويوتيوب بيرفض التشغيل بدون عنوان موقع. ارفع الملف على موقعك وافتحه من الرابط https.'), 4000);
+setTimeout(() => fallback('اليوتيوب ما ردّش. اتأكد من الإنترنت أو إن الفيديو مسموح بتضمينه، أو جرّب تفتح الصفحة من موقعك (https).'), 12000);
+const tag = document.createElement('script'); tag.onerror = () => fallback('تعذّر تحميل مكتبة يوتيوب (غالبًا إنترنت أو حجب).'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
 
 function update() {
   if (!yt || !yt.getDuration) return; const d = yt.getDuration() || 0, c = yt.getCurrentTime() || 0;
