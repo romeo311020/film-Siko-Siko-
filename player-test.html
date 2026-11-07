@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تجربة المشغّل الخاص | يلا رياضة</title>
+<style>
+:root{--bg:#0a0f0c;--acc:#c6ff3d;--on-acc:#000;--ease:cubic-bezier(.22,1,.36,1)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(70% 420px at 50% -100px,rgba(198,255,61,.14),transparent 70%),var(--bg);color:#fff;font-family:Cairo,'Segoe UI',Tahoma,Arial,sans-serif;display:grid;place-items:center;padding:24px}
+.wrap{width:min(980px,100%)}
+h1{font-size:20px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+h1 small{color:#9fb0a5;font-weight:600;font-size:13px}
+
+/* ===== المشغّل ===== */
+.yr-player{position:relative;aspect-ratio:16/9;background:#000;border:2px solid var(--acc);border-radius:14px;overflow:hidden;user-select:none;-webkit-user-select:none;box-shadow:0 30px 70px -30px rgba(0,0,0,.8)}
+.yr-player:fullscreen{border:0;border-radius:0;aspect-ratio:auto}
+.yr-video{position:absolute;inset:0}
+.yr-video iframe{width:100%;height:100%;border:0;pointer-events:none} /* الضغط بيروح لطبقتنا مش ليوتيوب */
+.yr-hit{position:absolute;inset:0;z-index:2;cursor:pointer}
+
+/* الشعار فوق على اليمين */
+.yr-top{position:absolute;inset:0 0 auto 0;z-index:4;padding:12px 14px 40px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:linear-gradient(180deg,rgba(0,0,0,.65),transparent);pointer-events:none;transition:opacity .35s}
+.yr-logo{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:5px 10px 5px 8px}
+.yr-logo svg{width:28px;height:28px;border-radius:8px}
+.yr-logo b{font-size:14px;line-height:1.1;font-weight:800}
+.yr-logo small{display:block;font-size:9px;letter-spacing:2px;color:#b7c4bb;font-weight:700}
+.yr-title{font-size:14px;font-weight:700;opacity:.9;text-shadow:0 1px 6px #000;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* تحميل */
+.yr-load{position:absolute;inset:0;z-index:6;display:grid;place-content:center;justify-items:center;gap:14px;background:radial-gradient(80% 80% at 50% 40%,#0f1a13,#000);text-align:center;transition:opacity .45s}
+.yr-load.done{opacity:0;pointer-events:none}
+.yr-load i{width:42px;height:42px;border-radius:50%;border:4px solid rgba(198,255,61,.25);border-top-color:var(--acc);animation:spin .9s linear infinite}
+.yr-bar{width:min(300px,64vw);height:6px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+.yr-bar b{display:block;height:100%;width:2%;border-radius:inherit;background:linear-gradient(90deg,var(--acc),#e8ffa6);transition:width .3s}
+.yr-load small{color:#b7c4bb;font-variant-numeric:tabular-nums}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* زر تشغيل كبير */
+.yr-big{position:absolute;inset:0;z-index:3;display:grid;place-items:center;pointer-events:none;transition:opacity .25s,transform .25s}
+.yr-big span{width:84px;height:84px;border-radius:50%;background:var(--acc);color:var(--on-acc);display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 10px rgba(198,255,61,.2),0 18px 40px -10px rgba(0,0,0,.7);animation:pulse 2s infinite}
+.yr-player.playing .yr-big{opacity:0;transform:scale(1.3)}
+@keyframes pulse{50%{box-shadow:0 0 0 18px rgba(198,255,61,0),0 18px 40px -10px rgba(0,0,0,.7)}}
+
+/* شريط التحكم */
+.yr-ctl{position:absolute;inset:auto 0 0 0;z-index:5;padding:34px 12px 10px;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent);transition:opacity .35s,transform .35s}
+.yr-player.idle.playing .yr-ctl,.yr-player.idle.playing .yr-top{opacity:0;pointer-events:none}
+.yr-player.idle.playing{cursor:none}
+.yr-seek{position:relative;height:18px;display:flex;align-items:center;cursor:pointer;direction:ltr}
+.yr-track{position:relative;width:100%;height:5px;border-radius:99px;background:rgba(255,255,255,.22);transition:height .15s}
+.yr-seek:hover .yr-track{height:8px}
+.yr-buf,.yr-prog{position:absolute;inset:0 auto 0 0;border-radius:inherit}
+.yr-buf{background:rgba(255,255,255,.28)}.yr-prog{background:var(--acc)}
+.yr-knob{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(198,255,61,.25);transform:scale(0);transition:transform .15s}
+.yr-seek:hover .yr-knob,.yr-seek.drag .yr-knob{transform:scale(1)}
+.yr-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.yr-btn{width:40px;height:40px;border:0;border-radius:12px;background:transparent;color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;transition:background .2s,transform .2s}
+.yr-btn:hover{background:rgba(255,255,255,.14)}.yr-btn:active{transform:scale(.92)}
+.yr-btn.main{background:var(--acc);color:var(--on-acc)}.yr-btn.main:hover{background:#d8ff7a}
+.yr-time{font-size:13px;color:#dfe8e2;font-variant-numeric:tabular-nums;direction:ltr;padding:0 6px;white-space:nowrap}
+.yr-sp{flex:1}
+.yr-vol{display:flex;align-items:center;direction:ltr}
+.yr-vol input{width:0;opacity:0;transition:width .25s,opacity .25s;accent-color:var(--acc);height:4px;cursor:pointer}
+.yr-vol:hover input,.yr-vol input:focus{width:84px;opacity:1;margin-inline:4px}
+.yr-speed{font-size:13px;font-weight:800;width:auto;padding:0 10px}
+.yr-live{display:none;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#fff;background:#e5383b;border-radius:8px;padding:3px 9px}
+.yr-toast{position:absolute;top:50%;left:50%;z-index:7;transform:translate(-50%,-50%);background:rgba(0,0,0,.7);padding:8px 16px;border-radius:12px;font-weight:800;opacity:0;transition:opacity .2s;pointer-events:none}
+.yr-toast.on{opacity:1}
+.hint{color:#9fb0a5;font-size:13px;margin-top:12px;line-height:1.9}
+.hint kbd{background:#1b2620;border:1px solid #2c3a32;border-radius:6px;padding:1px 7px;font-size:12px}
+@media(max-width:560px){.yr-btn{width:36px;height:36px}.yr-big span{width:64px;height:64px;font-size:26px}.yr-vol:hover input{width:56px}.yr-title{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 تجربة المشغّل الخاص <small>صفحة تجريبية — فيديو يوتيوب داخل مشغّل بتصميم يلا رياضة</small></h1>
+
+  <div class="yr-player" id="yr" tabindex="0" aria-label="مشغّل الفيديو">
+    <div class="yr-video" id="yr-video"></div>
+    <div class="yr-hit" id="yr-hit"></div>
+
+    <div class="yr-top">
+      <!-- الشعار: فوق على اليمين -->
+      <div class="yr-logo" aria-label="يلا رياضة">
+        <svg viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="30" fill="#000"/><path d="M32 40L64 78M96 40L64 78M64 78V106" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="64" cy="37" r="12.5" fill="#c6ff3d"/></svg>
+        <span><b>يلا رياضة</b><small>YALLA RIYADA</small></span>
+      </div>
+      <span class="yr-title" id="yr-title"></span>
+    </div>
+
+    <div class="yr-big" id="yr-big"><span>▶</span></div>
+    <div class="yr-toast" id="yr-toast"></div>
+
+    <div class="yr-load" id="yr-load"><i></i><div id="yr-msg">جارٍ تحميل الفيديو…</div><div class="yr-bar"><b id="yr-lbar"></b></div><small id="yr-pct">0%</small></div>
+
+    <div class="yr-ctl" id="yr-ctl">
+      <div class="yr-seek" id="yr-seek"><div class="yr-track"><div class="yr-buf" id="yr-buf"></div><div class="yr-prog" id="yr-prog"></div><div class="yr-knob" id="yr-knob"></div></div></div>
+      <div class="yr-row">
+        <button class="yr-btn main" id="b-play" aria-label="تشغيل">▶</button>
+        <button class="yr-btn" id="b-back" aria-label="رجوع ١٠ ثواني">⟲</button>
+        <button class="yr-btn" id="b-fwd" aria-label="تقديم ١٠ ثواني">⟳</button>
+        <div class="yr-vol"><button class="yr-btn" id="b-mute" aria-label="الصوت">🔊</button><input id="b-vol" type="range" min="0" max="100" value="100" aria-label="مستوى الصوت"></div>
+        <span class="yr-time" id="yr-time">0:00 / 0:00</span>
+        <span class="yr-live" id="yr-live">● مباشر</span>
+        <span class="yr-sp"></span>
+        <button class="yr-btn yr-speed" id="b-speed" aria-label="السرعة">1×</button>
+        <button class="yr-btn" id="b-fs" aria-label="ملء الشاشة">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">اختصارات: <kbd>مسافة</kbd> تشغيل/إيقاف · <kbd>←</kbd><kbd>→</kbd> ١٠ ثواني · <kbd>↑</kbd><kbd>↓</kbd> الصوت · <kbd>M</kbd> كتم · <kbd>F</kbd> ملء الشاشة · ضغطتين على الفيديو = ملء الشاشة.</p>
+</div>
+
+<script>
+/* غيّر الرابط هنا */
+const VIDEO_URL = 'https://www.youtube.com/embed/lh95srGjt6g?si=1R-v7CRriMr3SR_y';
+const TITLE = 'فيديو تجريبي';
+
+const $ = (id) => document.getElementById(id);
+const player = $('yr');
+const VIDEO_ID = (VIDEO_URL.match(/(?:embed\/|v=|youtu\.be\/)([\w-]{11})/) || [])[1];
+$('yr-title').textContent = TITLE;
+const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+
+/* شريط التحميل المتقدّم */
+const t0 = Date.now(); let ready = false;
+const tick = setInterval(() => { if (ready) return; const el = Date.now() - t0; $('yr-pct').textContent = (parseInt($('yr-lbar').style.width = Math.min(93, Math.round(100 * (1 - Math.exp(-el / 3200)) * .93 + 2)) + '%')) + '%'; $('yr-msg').textContent = el > 10000 ? 'التحميل بياخد وقت… جرّب تحديث الصفحة' : el > 6000 ? 'لحظات ويبدأ الفيديو…' : el > 2500 ? 'جارٍ الاتصال بالسيرفر…' : 'جارٍ تحميل الفيديو…'; }, 250);
+
+let yt, timer, idleT, speeds = [0.75, 1, 1.25, 1.5, 2], si = 1, dragging = false, isLive = false;
+window.onYouTubeIframeAPIReady = () => {
+  yt = new YT.Player('yr-video', {
+    videoId: VIDEO_ID,
+    host: 'https://www.youtube-nocookie.com',
+    playerVars: { controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, fs: 0, disablekb: 1, playsinline: 1, cc_load_policy: 0, origin: location.origin },
+    events: {
+      onReady: () => { ready = true; clearInterval(tick); $('yr-lbar').style.width = '100%'; $('yr-pct').textContent = '100%'; $('yr-msg').textContent = 'تم ✓'; setTimeout(() => $('yr-load').classList.add('done'), 350); update(); },
+      onStateChange: (e) => { const s = e.data; const playing = s === 1 || s === 3; player.classList.toggle('playing', s === 1 || s === 3); $('b-play').textContent = s === 1 ? '⏸' : '▶'; if (s === 0) { player.classList.remove('playing'); $('b-play').textContent = '↻'; } wake(); },
+      onError: () => { $('yr-load').classList.remove('done'); $('yr-msg').textContent = 'الفيديو غير متاح للتشغيل هنا'; clearInterval(tick); },
+    },
+  });
+  timer = setInterval(update, 250);
+};
+const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+
+function update() {
+  if (!yt || !yt.getDuration) return; const d = yt.getDuration() || 0, c = yt.getCurrentTime() || 0;
+  isLive = !!(yt.getVideoData && yt.getVideoData().isLive) || d === 0;
+  $('yr-live').style.display = isLive ? 'inline-flex' : 'none';
+  if (!dragging) { const p = d ? c / d * 100 : 100; $('yr-prog').style.width = p + '%'; $('yr-knob').style.left = p + '%'; }
+  $('yr-buf').style.width = (yt.getVideoLoadedFraction ? yt.getVideoLoadedFraction() * 100 : 0) + '%';
+  $('yr-time').textContent = isLive ? 'بث مباشر' : fmt(c) + ' / ' + fmt(d);
+}
+const toast = (t) => { const e = $('yr-toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 700); };
+const toggle = () => { if (!yt) return; const s = yt.getPlayerState(); if (s === 0) { yt.seekTo(0); yt.playVideo(); } else if (s === 1) yt.pauseVideo(); else yt.playVideo(); };
+const seekBy = (n) => { if (!yt || isLive) return; yt.seekTo(Math.max(0, yt.getCurrentTime() + n), true); toast((n > 0 ? '+' : '') + n + ' ث'); };
+const setVol = (v) => { yt.setVolume(v); v === 0 ? yt.mute() : yt.unMute(); $('b-vol').value = v; $('b-mute').textContent = v === 0 ? '🔇' : v < 50 ? '🔉' : '🔊'; };
+const fs = () => { if (document.fullscreenElement) document.exitFullscreen(); else (player.requestFullscreen || player.webkitRequestFullscreen).call(player); };
+function wake() { player.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => player.classList.add('idle'), 2600); }
+
+$('b-play').onclick = toggle; $('yr-hit').onclick = (e) => { if (e.detail === 1) { clearTimeout(wake.c); wake.c = setTimeout(toggle, 220); } }; $('yr-hit').ondblclick = () => { clearTimeout(wake.c); fs(); };
+$('b-back').onclick = () => seekBy(-10); $('b-fwd').onclick = () => seekBy(10); $('b-fs').onclick = fs;
+$('b-mute').onclick = () => { if (!yt) return; const m = yt.isMuted() || yt.getVolume() === 0; setVol(m ? Math.max(30, Number($('b-vol').value) || 60) : 0); };
+$('b-vol').oninput = (e) => setVol(Number(e.target.value));
+$('b-speed').onclick = () => { si = (si + 1) % speeds.length; yt.setPlaybackRate(speeds[si]); $('b-speed').textContent = speeds[si] + '×'; toast('السرعة ' + speeds[si] + '×'); };
+const seekTo = (x) => { const r = $('yr-seek').getBoundingClientRect(); const p = Math.min(1, Math.max(0, (x - r.left) / r.width)); $('yr-prog').style.width = p * 100 + '%'; $('yr-knob').style.left = p * 100 + '%'; return p; };
+$('yr-seek').addEventListener('pointerdown', (e) => { if (!yt || isLive) return; dragging = true; $('yr-seek').classList.add('drag'); $('yr-seek').setPointerCapture(e.pointerId); seekTo(e.clientX); });
+$('yr-seek').addEventListener('pointermove', (e) => { if (dragging) seekTo(e.clientX); });
+$('yr-seek').addEventListener('pointerup', (e) => { if (!dragging) return; dragging = false; $('yr-seek').classList.remove('drag'); yt.seekTo(seekTo(e.clientX) * yt.getDuration(), true); });
+['mousemove', 'touchstart', 'keydown'].forEach((ev) => player.addEventListener(ev, wake, { passive: true }));
+player.addEventListener('keydown', (e) => {
+  if (!yt) return; const k = e.key.toLowerCase(); let used = true;
+  if (k === ' ' || k === 'k') toggle(); else if (k === 'arrowleft') seekBy(-10); else if (k === 'arrowright') seekBy(10);
+  else if (k === 'arrowup') setVol(Math.min(100, yt.getVolume() + 10)); else if (k === 'arrowdown') setVol(Math.max(0, yt.getVolume() - 10));
+  else if (k === 'm') $('b-mute').click(); else if (k === 'f') fs(); else used = false;
+  if (used) e.preventDefault();
+});
+wake();
+</script>
+</body>
+</html>
